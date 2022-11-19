@@ -26,6 +26,7 @@ const CONTRACT_NAME: &str = "crates.io:ics10-grandpa-cw";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 */
 
+pub const CLIENT_TEST_ITEM: Item<u32> = Item::new("client_test_item");
 pub const CHANNELS_CONNECTION: Map<Bytes, Vec<(Bytes, Bytes)>> = Map::new("channels_connection");
 pub const CLIENT_UPDATE_TIME: Map<(Bytes, Bytes), u64> = Map::new("client_update_time");
 pub const CLIENT_UPDATE_HEIGHT: Map<(Bytes, Bytes), Bytes> = Map::new("client_update_height");
@@ -57,11 +58,14 @@ impl grandpa_light_client_primitives::HostFunctions for HostFunctions {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-	_deps: DepsMut,
+	deps: DepsMut,
 	_env: Env,
 	_info: MessageInfo,
 	_msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+	let data = CLIENT_TEST_ITEM.load(deps.storage)?;
+	let data = data + 1;
+	CLIENT_TEST_ITEM.save(deps.storage, &data)?;
 	Ok(Response::default())
 }
 
@@ -75,6 +79,9 @@ pub fn execute(
 	let client = GrandpaClient::<HostFunctions>::default();
 	let ctx = Context::<HostFunctions>::new(deps, env);
 	match msg {
+		ExecuteMsg::ReadAndModifyKVStoreMsg(_) => {
+			// todo: read client state and consensus state from store, req protobuf
+		},
 		ExecuteMsg::ValidateMsg(_) => todo!(),
 		ExecuteMsg::StatusMsg(_) => todo!(),
 		ExecuteMsg::ExportedMetadataMsg(_) => todo!(),
@@ -138,10 +145,10 @@ pub fn execute(
 				)
 				.map_err(|e| ContractError::Grandpa(e.to_string()))?;
 		},
-		ExecuteMsg::InitializeState { me, consensus_state } => {
+		/*ExecuteMsg::InitializeState { me, consensus_state } => {
 			let mut response = Response::default();
 			let state_call_response = ClientStateCallResponse {
-				me: WasmClientStateRef { code_id: me.code_id.clone() },
+				me: WasmClientStateRef { code_id: me.code_id.clone(), latest_height: me.latest_height.clone() },
 				new_consensus_state: WasmConsensusStateRef {
 					code_id: consensus_state.code_id.clone(),
 				},
@@ -151,7 +158,7 @@ pub fn execute(
 			response.data = Some(to_binary(&state_call_response)?);
 			return Ok(response)
 		},
-		ExecuteMsg::ClientCreateRequest { .. } => {},
+		ExecuteMsg::ClientCreateRequest { .. } => {},*/
 	}
 	Ok(Response::default())
 }
@@ -188,7 +195,7 @@ mod tests {
 		CosmosMsg,
 	};
 
-	#[test]
+	/*#[test]
 	fn proper_initialization() {
 		let mut deps = mock_dependencies();
 
@@ -206,5 +213,5 @@ mod tests {
 		// assert_eq!("creator", res.creator.as_str());
 		// assert_eq!(coins(1, "BTC"), res.collateral);
 		// assert_eq!(coins(40, "ETH"), res.counter_offer);
-	}
+	}*/
 }

@@ -62,9 +62,7 @@ pub struct InitializeState {
 }
 
 #[cw_serde]
-pub struct InstantiateMsg {
-	initialize_state: InitializeState,
-}
+pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub struct ClientCreateRequest {
@@ -73,8 +71,7 @@ pub struct ClientCreateRequest {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-	InitializeState { me: WasmClientStateRef, consensus_state: WasmConsensusStateRef },
-	ClientCreateRequest { code_id: String },
+	ReadAndModifyKVStoreMsg(ReadAndModifyKVStoreMsg),
 	ValidateMsg(ValidateMsg),
 	StatusMsg(StatusMsg),
 	ExportedMetadataMsg(ExportedMetadataMsg),
@@ -99,6 +96,9 @@ pub enum QueryMsg {
 	#[returns(Height)]
 	GetLatestHeightsMsg(GetLatestHeightsMsg),
 }
+
+#[cw_serde]
+pub struct ReadAndModifyKVStoreMsg {}
 
 // ClientState interface related messages
 // Reference: https://github.com/cosmos/ibc-go/blob/main/modules/core/exported/client.go#L36
