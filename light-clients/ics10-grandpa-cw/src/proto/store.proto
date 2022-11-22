@@ -1,0 +1,182 @@
+
+syntax = "proto3";
+package ibc.lightclients.wasm.v1;
+
+// IdentifiedClientState defines a client state with an additional client
+// identifier field.
+message IdentifiedClientState {
+  // client identifier
+  string client_id = 1;
+  // client state
+  ClientState client_state = 2;
+}
+
+// ConsensusStateWithHeight defines a consensus state with an additional height
+// field.
+message ConsensusStateWithHeight {
+  // consensus state height
+  Height height = 1;
+  // consensus state
+  ConsensusState consensus_state = 2;
+}
+
+// ClientConsensusStates defines all the stored consensus states for a given
+// client.
+message ClientConsensusStates {
+  // client identifier
+  string client_id = 1;
+  // consensus states and their heights associated with the client
+  repeated ConsensusStateWithHeight consensus_states = 2;
+}
+
+
+// Wasm light client's Client state
+message ClientState {
+  bytes                     data          = 1;
+  bytes                     code_id       = 2;
+  Height                    latest_height = 3;
+  repeated ProofSpec proof_specs = 4;
+  string                   repository  = 5;
+}
+
+// Wasm light client's ConsensusState
+message ConsensusState {
+  bytes data                         = 1;
+  bytes code_id                      = 2;
+
+  // timestamp that corresponds to the block height in which the ConsensusState
+  // was stored.
+  uint64 timestamp = 3;
+  // commitment root
+  MerkleRoot root = 4;
+} //
+
+// Wasm light client Header
+message Header {
+  bytes  data   = 1;
+  Height height = 2;
+}
+
+// Wasm light client Misbehaviour
+message Misbehaviour {
+  string client_id = 1;
+  Header header_1  = 2;
+  Header header_2  = 3;
+}
+
+message Height {
+  // the revision that the client is currently on
+  uint64 revision_number = 1;
+  // the height within the given revision
+  uint64 revision_height = 2;
+}
+
+// MerkleRoot defines a merkle root hash.
+// In the Cosmos SDK, the AppHash of a block header becomes the root.
+message MerkleRoot {
+  bytes hash = 1;
+}
+
+enum HashOp {
+    // NO_HASH is the default if no data passed. Note this is an illegal argument some places.
+    NO_HASH = 0;
+    SHA256 = 1;
+    SHA512 = 2;
+    KECCAK = 3;
+    RIPEMD160 = 4;
+    BITCOIN = 5;  // ripemd160(sha256(x))
+    SHA512_256 = 6;
+}
+
+/**
+LengthOp defines how to process the key and value of the LeafOp
+to include length information. After encoding the length with the given
+algorithm, the length will be prepended to the key and value bytes.
+(Each one with it's own encoded length)
+*/
+enum LengthOp {
+    // NO_PREFIX don't include any length info
+    NO_PREFIX = 0; 
+    // VAR_PROTO uses protobuf (and go-amino) varint encoding of the length
+    VAR_PROTO = 1; 
+    // VAR_RLP uses rlp int encoding of the length
+    VAR_RLP = 2; 
+    // FIXED32_BIG uses big-endian encoding of the length as a 32 bit integer
+    FIXED32_BIG = 3; 
+    // FIXED32_LITTLE uses little-endian encoding of the length as a 32 bit integer
+    FIXED32_LITTLE = 4; 
+    // FIXED64_BIG uses big-endian encoding of the length as a 64 bit integer
+    FIXED64_BIG = 5;
+    // FIXED64_LITTLE uses little-endian encoding of the length as a 64 bit integer
+    FIXED64_LITTLE = 6;
+    // REQUIRE_32_BYTES is like NONE, but will fail if the input is not exactly 32 bytes (sha256 output)
+    REQUIRE_32_BYTES = 7;
+    // REQUIRE_64_BYTES is like NONE, but will fail if the input is not exactly 64 bytes (sha512 output)
+    REQUIRE_64_BYTES = 8;
+}
+
+/**
+LeafOp represents the raw key-value data we wish to prove, and
+must be flexible to represent the internal transformation from
+the original key-value pairs into the basis hash, for many existing
+merkle trees.
+key and value are passed in. So that the signature of this operation is:
+  leafOp(key, value) -> output
+To process this, first prehash the keys and values if needed (ANY means no hash in this case):
+  hkey = prehashKey(key)
+  hvalue = prehashValue(value)
+Then combine the bytes, and hash it
+  output = hash(prefix || length(hkey) || hkey || length(hvalue) || hvalue)
+*/
+message LeafOp {
+    HashOp hash = 1;
+    HashOp prehash_key = 2;
+    HashOp prehash_value = 3;
+    LengthOp length = 4;
+    // prefix is a fixed bytes that may optionally be included at the beginning to differentiate
+    // a leaf node from an inner node.
+    bytes prefix = 5;
+}
+
+/**
+ProofSpec defines what the expected parameters are for a given proof type.
+This can be stored in the client and used to validate any incoming proofs.
+  verify(ProofSpec, Proof) -> Proof | Error
+As demonstrated in tests, if we don't fix the algorithm used to calculate the
+LeafHash for a given tree, there are many possible key-value pairs that can
+generate a given hash (by interpretting the preimage differently).
+We need this for proper security, requires client knows a priori what
+tree format server uses. But not in code, rather a configuration object.
+*/
+message ProofSpec {
+  // any field in the ExistenceProof must be the same as in this spec.
+  // except Prefix, which is just the first bytes of prefix (spec can be longer) 
+  LeafOp leaf_spec = 1;
+  InnerSpec inner_spec = 2;
+  // max_depth (if > 0) is the maximum number of InnerOps allowed (mainly for fixed-depth tries)
+  int32 max_depth = 3;
+  // min_depth (if > 0) is the minimum number of InnerOps allowed (mainly for fixed-depth tries)
+  int32 min_depth = 4;
+}
+
+/*
+InnerSpec contains all store-specific structure info to determine if two proofs from a
+given store are neighbors.
+This enables:
+  isLeftMost(spec: InnerSpec, op: InnerOp)
+  isRightMost(spec: InnerSpec, op: InnerOp)
+  isLeftNeighbor(spec: InnerSpec, left: InnerOp, right: InnerOp)
+*/
+message InnerSpec {
+    // Child order is the ordering of the children node, must count from 0
+    // iavl tree is [0, 1] (left then right)
+    // merk is [0, 2, 1] (left, right, here)
+    repeated int32 child_order = 1;
+    int32 child_size = 2;
+    int32 min_prefix_length = 3;
+    int32 max_prefix_length = 4;
+    // empty child is the prehash image that is used when one child is nil (eg. 20 bytes of 0)
+    bytes empty_child = 5;
+    // hash is the algorithm that must be used for each InnerOp
+    HashOp hash = 6;
+}

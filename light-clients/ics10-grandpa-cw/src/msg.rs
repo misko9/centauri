@@ -71,7 +71,7 @@ pub struct ClientCreateRequest {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-	ReadAndModifyKVStoreMsg(ReadAndModifyKVStoreMsg),
+	ReadAndModifyKvStoreMsg(ReadAndModifyKvStoreMsg),
 	ValidateMsg(ValidateMsg),
 	StatusMsg(StatusMsg),
 	ExportedMetadataMsg(ExportedMetadataMsg),
@@ -98,7 +98,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct ReadAndModifyKVStoreMsg {}
+pub struct ReadAndModifyKvStoreMsg {}
 
 // ClientState interface related messages
 // Reference: https://github.com/cosmos/ibc-go/blob/main/modules/core/exported/client.go#L36

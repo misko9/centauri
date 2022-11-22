@@ -8,6 +8,7 @@ use crate::{
 		VerifyUpgradeAndUpdateStateMsg, WasmClientStateRef, WasmConsensusStateRef,
 	},
 	Bytes,
+	proto::{IdentifiedClientState, },
 };
 use cosmwasm_schema::cw_serde;
 #[cfg(not(feature = "library"))]
@@ -18,7 +19,8 @@ use ibc::core::ics02_client::client_def::ClientDef;
 use ics10_grandpa::{client_def::GrandpaClient, consensus_state::ConsensusState};
 use light_client_common::{verify_membership, verify_non_membership, LocalHeight};
 use sp_runtime::traits::BlakeTwo256;
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, };
+use prost::{Message, encoding::bool::encode};
 
 /*
 // version info for migration info
@@ -79,8 +81,18 @@ pub fn execute(
 	let client = GrandpaClient::<HostFunctions>::default();
 	let ctx = Context::<HostFunctions>::new(deps, env);
 	match msg {
-		ExecuteMsg::ReadAndModifyKVStoreMsg(_) => {
-			// todo: read client state and consensus state from store, req protobuf
+		ExecuteMsg::ReadAndModifyKvStoreMsg(_) => {
+			if let Some(data) = ctx.deps.storage.get("clientState".as_bytes()){
+				if let Ok(mut identified_client_state) = IdentifiedClientState::decode(data.clone().as_slice()) {
+					if let Some(mut client_state) = identified_client_state.client_state {
+						client_state.repository = client_state.repository + "_grandpa_contract_added";
+						identified_client_state.client_state = Some(client_state);
+						let mut encoded_data: Vec<u8> = Vec::new();
+						identified_client_state.encode(&mut encoded_data).unwrap();
+						ctx.deps.storage.set("clientState".as_bytes(), encoded_data.as_slice());
+					}
+				}
+			}
 		},
 		ExecuteMsg::ValidateMsg(_) => todo!(),
 		ExecuteMsg::StatusMsg(_) => todo!(),

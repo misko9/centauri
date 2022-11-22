@@ -1,0 +1,1 @@
+include!(concat!(env!("OUT_DIR"), "/ibc.lightclients.wasm.v1.rs"));

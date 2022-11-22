@@ -12,6 +12,7 @@ pub mod state;
 #[cfg(test)]
 mod tests;
 mod types;
+pub mod proto;
 
 pub use crate::error::ContractError;
 
