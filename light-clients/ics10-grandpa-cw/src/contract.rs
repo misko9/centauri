@@ -4,7 +4,7 @@ use crate::{
 	ics23::FakeInner,
 	log,
 	msg::{
-		CheckForMisbehaviourMsg, ClientStateCallResponse, ContractResult, ExecuteMsg,
+		CheckForMisbehaviourMsg, ClientStateCallResponse, ContractResult, ExecuteMsg, ExportMetadataMsg,
 		InitializeState, InstantiateMsg, QueryMsg, QueryResponse, StatusMsg, UpdateStateMsg,
 		UpdateStateOnMisbehaviourMsg, VerifyClientMessage, VerifyMembershipMsg,
 		VerifyNonMembershipMsg, VerifyUpgradeAndUpdateStateMsg,
@@ -334,6 +334,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 					))
 				}
 			}
+		},
+		QueryMsg::ExportMetadata(ExportMetadataMsg {}) => {
+			to_binary(&QueryResponse::genesis_metadata(None))
 		},
 	}
 }
