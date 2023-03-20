@@ -34,7 +34,7 @@ pub const WASM_CONSENSUS_STATE_TYPE_URL: &str = "/ibc.lightclients.wasm.v1.Conse
 pub struct CommitmentRootBase64 {
 	#[cfg_attr(feature = "cosmwasm", schemars(with = "String"))]
 	#[cfg_attr(feature = "cosmwasm", serde(with = "Base64"))]
-	pub bytes: Vec<u8>,
+	pub hash: Vec<u8>,
 }
 
 #[cfg_attr(feature = "cosmwasm", cw_serde)]
@@ -48,6 +48,7 @@ pub struct ConsensusState<AnyConsensusState> {
 	#[cfg_attr(feature = "cosmwasm", serde(with = "Base64", default))]
 	pub code_id: Bytes,
 	pub timestamp: u64,
+	#[cfg_attr(feature = "cosmwasm", schemars(with = "String"))]
 	#[cfg_attr(feature = "cosmwasm", serde(with = "CommitmentRootBase64"))]
 	pub root: CommitmentRoot,
 	#[cfg_attr(feature = "cosmwasm", serde(skip))]

@@ -343,16 +343,18 @@ pub struct CheckSubstituteAndUpdateStateMsg {
 
 #[cw_serde]
 pub struct VerifyUpgradeAndUpdateStateMsgRaw {
-	pub client_id: String,
-	pub old_client_state: Bytes,
-	pub upgrade_client_state: Bytes,
-	pub upgrade_consensus_state: Bytes,
+	pub old_client_state: WasmClientState<FakeInner, FakeInner, FakeInner>,
+	pub upgrade_client_state: WasmClientState<FakeInner, FakeInner, FakeInner>,
+	pub upgrade_consensus_state: WasmConsensusState<FakeInner>,
+	#[schemars(with = "String")]
+	#[serde(with = "Base64", default)]
 	pub proof_upgrade_client: Vec<u8>,
+	#[schemars(with = "String")]
+	#[serde(with = "Base64", default)]
 	pub proof_upgrade_consensus_state: Vec<u8>,
 }
 
 pub struct VerifyUpgradeAndUpdateStateMsg<H> {
-	pub client_id: ClientId,
 	pub old_client_state: ClientState<H>,
 	pub upgrade_client_state: ClientState<H>,
 	pub upgrade_consensus_state: ConsensusState,
@@ -363,18 +365,19 @@ pub struct VerifyUpgradeAndUpdateStateMsg<H> {
 impl<H: Clone> TryFrom<VerifyUpgradeAndUpdateStateMsgRaw> for VerifyUpgradeAndUpdateStateMsg<H> {
 	type Error = ContractError;
 
-	fn try_from(value: VerifyUpgradeAndUpdateStateMsgRaw) -> Result<Self, Self::Error> {
-		let client_id = ClientId::from_str(&value.client_id)?;
-		let old_client_state = ClientState::decode_vec(&value.old_client_state)?;
-		let upgrade_client_state = ClientState::decode_vec(&value.upgrade_client_state)?;
-		let upgrade_consensus_state = ConsensusState::decode_vec(&value.upgrade_consensus_state)?;
+	fn try_from(raw: VerifyUpgradeAndUpdateStateMsgRaw) -> Result<Self, Self::Error> {
+		let any = Any::decode(&mut raw.old_client_state.data.as_slice())?;
+		let old_client_state = ClientState::decode_vec(&any.value)?;
+		let any = Any::decode(&mut raw.upgrade_client_state.data.as_slice())?;
+		let upgrade_client_state = ClientState::decode_vec(&any.value)?;
+		let any = Any::decode(&mut raw.upgrade_consensus_state.data.as_slice())?;
+		let upgrade_consensus_state = ConsensusState::decode_vec(&any.value)?;
 		Ok(VerifyUpgradeAndUpdateStateMsg {
-			client_id,
 			old_client_state,
 			upgrade_client_state,
 			upgrade_consensus_state,
-			proof_upgrade_client: value.proof_upgrade_client,
-			proof_upgrade_consensus_state: value.proof_upgrade_consensus_state,
+			proof_upgrade_client: raw.proof_upgrade_client,
+			proof_upgrade_consensus_state: raw.proof_upgrade_consensus_state,
 		})
 	}
 }

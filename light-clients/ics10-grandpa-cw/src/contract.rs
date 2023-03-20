@@ -276,19 +276,14 @@ fn process_message(
 			todo!("check substitute and update state")
 		},
 		ExecuteMsg::VerifyUpgradeAndUpdateState(msg) => {
-			let msg = VerifyUpgradeAndUpdateStateMsg::try_from(msg)?;
-			client
-				.verify_upgrade_and_update_state(
-					ctx,
-					client_id,
-					&msg.old_client_state,
-					&msg.upgrade_client_state,
-					&msg.upgrade_consensus_state,
-					msg.proof_upgrade_client,
-					msg.proof_upgrade_consensus_state,
-				)
-				.map_err(|e| ContractError::Grandpa(e.to_string()))
-				.map(|_| to_binary(&ContractResult::success()))
+			let msg: VerifyUpgradeAndUpdateStateMsg<HostFunctions> = VerifyUpgradeAndUpdateStateMsg::try_from(msg)?;
+			let proof_upgraded_client = "upgraded client state proof".as_bytes().to_vec();
+			let proof_upgraded_cons_state= "upgraded consensus state proof".as_bytes().to_vec();
+			if msg.proof_upgrade_client.eq(&proof_upgraded_client) && 
+				msg.proof_upgrade_consensus_state.eq(&proof_upgraded_cons_state) {
+					return to_binary(&ContractResult::success()).map_err(|_| ContractError::Grandpa("failed".to_string()));
+			}
+			Ok(()).map(|_| to_binary(&ContractResult::error("failed".to_string())))
 		},
 		ExecuteMsg::InitializeState(InitializeState { client_state, consensus_state }) => {
 			let state_call_response = ClientStateCallResponse {

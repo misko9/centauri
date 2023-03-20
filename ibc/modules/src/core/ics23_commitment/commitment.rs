@@ -26,13 +26,13 @@ use super::merkle::MerkleProof;
 pub struct CommitmentRoot {
 	#[serde(serialize_with = "crate::serializers::ser_hex_upper")]
 	#[serde(deserialize_with = "crate::serializers::deser_hex_upper")]
-	pub bytes: Vec<u8>,
+	pub hash: Vec<u8>,
 }
 
 impl fmt::Debug for CommitmentRoot {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let hex = Hex::upper_case()
-			.encode_to_string(&self.bytes)
+			.encode_to_string(&self.hash)
 			.map_err(|_| fmt::Error::default())?;
 		f.debug_tuple("CommitmentRoot").field(&hex).finish()
 	}
@@ -40,21 +40,21 @@ impl fmt::Debug for CommitmentRoot {
 
 impl CommitmentRoot {
 	pub fn from_bytes(bytes: &[u8]) -> Self {
-		Self { bytes: Vec::from(bytes) }
+		Self { hash: Vec::from(bytes) }
 	}
 
 	pub fn as_bytes(&self) -> &[u8] {
-		&self.bytes
+		&self.hash
 	}
 
 	pub fn into_vec(self) -> Vec<u8> {
-		self.bytes
+		self.hash
 	}
 }
 
 impl From<Vec<u8>> for CommitmentRoot {
-	fn from(bytes: Vec<u8>) -> Self {
-		Self { bytes }
+	fn from(hash: Vec<u8>) -> Self {
+		Self { hash }
 	}
 }
 
