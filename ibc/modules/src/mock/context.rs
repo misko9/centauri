@@ -961,7 +961,7 @@ where
 		}
 	}
 
-	fn client_state(&self, client_id: &ClientId) -> Result<C::AnyClientState, Ics02Error> {
+	fn client_state(&self, client_id: &ClientId, _prefix: &mut Vec<u8>) -> Result<C::AnyClientState, Ics02Error> {
 		match self.ibc_store.lock().unwrap().clients.get(client_id) {
 			Some(client_record) => client_record
 				.client_state
@@ -975,6 +975,7 @@ where
 		&self,
 		client_id: &ClientId,
 		height: Height,
+		_prefix: &mut Vec<u8>,
 	) -> Result<C::AnyConsensusState, Ics02Error> {
 		match self.ibc_store.lock().unwrap().clients.get(client_id) {
 			Some(client_record) => match client_record.consensus_states.get(&height) {
@@ -1120,6 +1121,7 @@ impl<C: HostBlockType> ClientKeeper for MockContext<C> {
 		&mut self,
 		client_id: ClientId,
 		client_state: C::AnyClientState,
+		_prefix: &mut Vec<u8>,
 	) -> Result<(), Ics02Error> {
 		let mut ibc_store = self.ibc_store.lock().unwrap();
 		let client_record = ibc_store.clients.entry(client_id).or_insert(MockClientRecord {
@@ -1137,6 +1139,7 @@ impl<C: HostBlockType> ClientKeeper for MockContext<C> {
 		client_id: ClientId,
 		height: Height,
 		consensus_state: C::AnyConsensusState,
+		_prefix: &mut Vec<u8>,
 	) -> Result<(), Ics02Error> {
 		let mut ibc_store = self.ibc_store.lock().unwrap();
 		let client_record = ibc_store.clients.entry(client_id).or_insert(MockClientRecord {

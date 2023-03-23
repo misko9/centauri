@@ -34,35 +34,27 @@ impl<'a> ConsensusStates<'a> {
 		ConsensusStates(storage)
 	}
 
-	pub fn consensus_state_client_key(_client_id: ClientId) -> Vec<u8> {
+	pub fn consensus_state_client_key() -> Vec<u8> {
 		format!("consensusStates/").into_bytes()
-		// format!("clients/{}/consensusStates/", client_id).into_bytes()
 	}
 
 	pub fn consensus_state_height_key(height: Height) -> Vec<u8> {
 		format!("{}", height).into_bytes()
 	}
 
-	pub fn consensus_state_key(client_id: ClientId, height: Height) -> (Vec<u8>, Vec<u8>) {
-		let client_id_key = Self::consensus_state_client_key(client_id);
-		let height_key = Self::consensus_state_height_key(height);
-		(client_id_key, height_key)
+	pub fn consensus_state_key(height: Height, prefix: &mut Vec<u8>) -> Vec<u8> {
+		prefix.append(&mut Self::consensus_state_client_key());
+		prefix.append(&mut Self::consensus_state_height_key(height));
+		prefix.clone()
 	}
 
-	pub fn get(&self, client_id: &ClientId, height: Height) -> Option<Vec<u8>> {
-		let (consensus_state_key_1, consensus_state_key_2) =
-			Self::consensus_state_key(client_id.clone(), height);
-		let full_key =
-			[consensus_state_key_1.as_slice(), consensus_state_key_2.as_slice()].concat();
+	pub fn get(&self, height: Height, prefix: &mut Vec<u8>) -> Option<Vec<u8>> {
+		let full_key = Self::consensus_state_key(height, prefix);	
 		self.0.get(&full_key)
 	}
 
-	pub fn insert(&mut self, client_id: ClientId, height: Height, consensus_state: Vec<u8>) {
-		let (consensus_state_key_1, consensus_state_key_2) =
-			Self::consensus_state_key(client_id, height);
-		let full_key =
-			[consensus_state_key_1.as_slice(), consensus_state_key_2.as_slice()].concat();
-
+	pub fn insert(&mut self, height: Height, consensus_state: Vec<u8>, prefix: &mut Vec<u8>) {
+		let full_key = Self::consensus_state_key(height, prefix);	
 		self.0.set(&full_key, &consensus_state);
 	}
 }
@@ -76,11 +68,9 @@ impl<'a> ReadonlyConsensusStates<'a> {
 		ReadonlyConsensusStates(storage)
 	}
 
-	pub fn get(&self, client_id: &ClientId, height: Height) -> Option<Vec<u8>> {
-		let (consensus_state_key_1, consensus_state_key_2) =
-			ConsensusStates::consensus_state_key(client_id.clone(), height);
+	pub fn get(&self, height: Height, prefix: &mut Vec<u8>) -> Option<Vec<u8>> {
 		let full_key =
-			[consensus_state_key_1.as_slice(), consensus_state_key_2.as_slice()].concat();
+			ConsensusStates::consensus_state_key(height, prefix);
 		self.0.get(&full_key)
 	}
 }

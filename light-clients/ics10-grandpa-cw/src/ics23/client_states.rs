@@ -1,5 +1,4 @@
 use cosmwasm_std::Storage;
-use ibc::core::ics24_host::identifier::ClientId;
 
 /// client_id => client_states
 /// trie key path: "clients/{client_id}/clientState"
@@ -10,22 +9,22 @@ impl<'a> ClientStates<'a> {
 		ClientStates(storage)
 	}
 
-	pub fn key(_client_id: ClientId) -> Vec<u8> {
+	pub fn key(prefix: &mut Vec<u8>) -> Vec<u8> {
 		let client_state_path = format!("clientState");
-		// let client_state_path = format!("{}", ClientStatePath(client_id));
-		client_state_path.into_bytes()
+		prefix.append(&mut client_state_path.into_bytes());
+		prefix.clone()
 	}
 
-	pub fn get(&self, client_id: &ClientId) -> Option<Vec<u8>> {
-		self.0.get(&Self::key(client_id.clone()))
+	pub fn get(&self, prefix: &mut Vec<u8>) -> Option<Vec<u8>> {
+		self.0.get(&Self::key(prefix))
 	}
 
-	pub fn insert(&mut self, client_id: ClientId, client_state: Vec<u8>) {
-		self.0.set(&Self::key(client_id), &client_state);
+	pub fn insert(&mut self, prefix: &mut Vec<u8>, client_state: Vec<u8>) {
+		self.0.set(&Self::key(prefix), &client_state);
 	}
 
-	pub fn contains_key(&self, client_id: &ClientId) -> bool {
-		self.get(client_id).is_some()
+	pub fn contains_key(&self, prefix: &mut Vec<u8>) -> bool {
+		self.get(prefix).is_some()
 	}
 }
 
@@ -36,11 +35,11 @@ impl<'a> ReadonlyClientStates<'a> {
 		ReadonlyClientStates(storage)
 	}
 
-	pub fn get(&self, client_id: &ClientId) -> Option<Vec<u8>> {
-		self.0.get(&ClientStates::key(client_id.clone()))
+	pub fn get(&self, prefix: &mut Vec<u8>) -> Option<Vec<u8>> {
+		self.0.get(&ClientStates::key(prefix))
 	}
 
-	pub fn contains_key(&self, client_id: &ClientId) -> bool {
-		self.get(client_id).is_some()
+	pub fn contains_key(&self, prefix: &mut Vec<u8>) -> bool {
+		self.get(prefix).is_some()
 	}
 }

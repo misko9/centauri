@@ -246,7 +246,7 @@ where
 			)?;
 
 			// Skip duplicate consensus states
-			if ctx.consensus_state(&client_id, height).is_ok() {
+			if ctx.consensus_state(&client_id, height, &mut Vec::new()).is_ok() {
 				continue
 			}
 
@@ -374,7 +374,7 @@ where
 			old_client_state.latest_para_height as u64,
 		);
 
-		let consenus_state = ctx.consensus_state(&client_id, height)?
+		let consenus_state = ctx.consensus_state(&client_id, height, &mut Vec::new())?
 			.downcast::<Self::ConsensusState>()
 			.ok_or_else(|| Error::Custom(format!("Wrong consensus state type stored for Grandpa client with {client_id} at {height}")))?;
 

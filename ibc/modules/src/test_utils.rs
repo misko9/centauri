@@ -454,7 +454,7 @@ impl<C: HostBlockType> ConnectionReader for DummyTransferModule<C> {
 }
 
 impl<C: HostBlockType> ClientReader for DummyTransferModule<C> {
-	fn client_state(&self, client_id: &ClientId) -> Result<Self::AnyClientState, Ics02Error> {
+	fn client_state(&self, client_id: &ClientId, _prefix: &mut Vec<u8>) -> Result<Self::AnyClientState, Ics02Error> {
 		match self.ibc_store.lock().unwrap().clients.get(client_id) {
 			Some(client_record) => client_record
 				.client_state
@@ -481,6 +481,7 @@ impl<C: HostBlockType> ClientReader for DummyTransferModule<C> {
 		&self,
 		client_id: &ClientId,
 		height: Height,
+		_prefix: &mut Vec<u8>,
 	) -> Result<Self::AnyConsensusState, Ics02Error> {
 		match self.ibc_store.lock().unwrap().clients.get(client_id) {
 			Some(client_record) => match client_record.consensus_states.get(&height) {
@@ -633,6 +634,7 @@ impl<C: HostBlockType> ClientKeeper for DummyTransferModule<C> {
 		&mut self,
 		_client_id: ClientId,
 		_client_state: Self::AnyClientState,
+		_prefix: &mut Vec<u8>,
 	) -> Result<(), Ics02Error> {
 		todo!()
 	}
@@ -642,6 +644,7 @@ impl<C: HostBlockType> ClientKeeper for DummyTransferModule<C> {
 		_client_id: ClientId,
 		_height: Height,
 		_consensus_state: Self::AnyConsensusState,
+		_prefix: &mut Vec<u8>,
 	) -> Result<(), Ics02Error> {
 		todo!()
 	}

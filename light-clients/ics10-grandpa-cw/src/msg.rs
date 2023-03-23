@@ -318,7 +318,6 @@ impl TryFrom<UpdateStateMsgRaw> for UpdateStateMsg {
 
 #[cw_serde]
 pub struct CheckSubstituteAndUpdateStateMsg {
-	substitute_client_msg: Vec<u8>,
 }
 
 #[cw_serde]

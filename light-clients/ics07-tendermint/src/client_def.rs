@@ -114,7 +114,7 @@ where
 				};
 
 				let trusted_consensus_state: Self::ConsensusState = ctx
-					.consensus_state(&client_id, header.trusted_height)?
+					.consensus_state(&client_id, header.trusted_height, &mut Vec::new())?
 					.downcast()
 					.ok_or(Ics02Error::client_args_type_mismatch(
 						ClientState::<H>::client_type().to_owned(),
