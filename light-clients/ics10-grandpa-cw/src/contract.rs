@@ -209,7 +209,9 @@ fn process_message(
 			client
 				.check_for_misbehaviour(ctx, client_id, client_state, msg.client_message)
 				.map_err(|e| ContractError::Grandpa(e.to_string()))
-				.map(|_| to_binary(&ContractResult::success()))
+				.map(|result| {
+					to_binary(&ContractResult::success().misbehaviour(result))
+				})
 		},
 		ExecuteMsg::UpdateStateOnMisbehaviour(msg_raw) => {
 			let client_state = ctx.client_state(&client_id, &mut Vec::new())
