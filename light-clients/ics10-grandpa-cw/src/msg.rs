@@ -49,11 +49,11 @@ pub struct QueryResponse {
 
 impl QueryResponse {
 	pub fn status(status: String) -> Self {
-		Self { status: status, genesis_metadata: None }
+		Self { status, genesis_metadata: None }
 	}
 
 	pub fn genesis_metadata(genesis_metadata: Option<Vec<GenesisMetadata>>) -> Self {
-		Self { status: "".to_string(), genesis_metadata: genesis_metadata}
+		Self { status: "".to_string(), genesis_metadata }
 	}
 }
 
@@ -262,7 +262,7 @@ impl VerifyClientMessage {
 
 #[cw_serde]
 pub struct CheckForMisbehaviourMsgRaw {
-	pub misbehaviour: WasmMisbehaviour,
+	pub client_message: ClientMessageRaw,
 }
 
 pub struct CheckForMisbehaviourMsg {
@@ -273,8 +273,7 @@ impl TryFrom<CheckForMisbehaviourMsgRaw> for CheckForMisbehaviourMsg {
 	type Error = ContractError;
 
 	fn try_from(raw: CheckForMisbehaviourMsgRaw) -> Result<Self, Self::Error> {
-		let any = Any::decode(&*raw.misbehaviour.data)?;
-		let client_message = ClientMessage::Misbehaviour(Misbehaviour::decode_vec(&any.value)?);
+		let client_message = VerifyClientMessage::decode_client_message(raw.client_message)?;
 		Ok(Self { client_message })
 	}
 }
@@ -292,8 +291,9 @@ impl TryFrom<UpdateStateOnMisbehaviourMsgRaw> for UpdateStateOnMisbehaviourMsg {
 	type Error = ContractError;
 
 	fn try_from(raw: UpdateStateOnMisbehaviourMsgRaw) -> Result<Self, Self::Error> {
-		let any = Any::decode(&*raw.client_message.data)?;
-		let client_message = ClientMessage::Misbehaviour(Misbehaviour::decode_vec(&any.value)?);
+		let client_message = VerifyClientMessage::decode_client_message(
+			ClientMessageRaw::Misbehaviour(raw.client_message),
+		)?;
 		Ok(Self { client_message })
 	}
 }
