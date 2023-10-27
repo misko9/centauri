@@ -22,7 +22,7 @@ use crate::{
 		CheckForMisbehaviourMsg, CheckSubstituteAndUpdateStateMsg,
 		ContractResult, SudoMsg, ExportMetadataMsg, QueryMsg, QueryResponse,
 		StatusMsg, UpdateStateMsg, UpdateStateOnMisbehaviourMsg, VerifyClientMessage,
-		VerifyMembershipMsg, VerifyNonMembershipMsg, VerifyUpgradeAndUpdateStateMsg,
+		VerifyMembershipMsg, VerifyNonMembershipMsg, VerifyUpgradeAndUpdateStateMsg, MigrateMsg,
 	},
 	state::{get_client_state, get_consensus_state},
 	Bytes,
@@ -424,6 +424,15 @@ where
 	ctx.store_client_state(client_id, client_state)
 		.map_err(|e| ContractError::Grandpa(e.to_string()))?;
 	Ok(to_binary(&ContractResult::success().heights(heights)))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(
+	_deps: DepsMut,
+	_env: Env,
+	_msg: MigrateMsg
+) -> Result<Response, ContractError> {
+  Ok(Response::new())
 }
 
 // The FFIs below are required because of sp-io dependency that expects the functions to be

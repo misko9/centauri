@@ -389,3 +389,6 @@ impl<H: Clone> TryFrom<VerifyUpgradeAndUpdateStateMsgRaw> for VerifyUpgradeAndUp
 		})
 	}
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}
