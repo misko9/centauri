@@ -108,12 +108,12 @@ impl Verifier for HostFunctionsManager {
 		signature: &Signature,
 	) -> Result<(), TendermintCryptoError> {
 		let signature = sp_core::ed25519::Signature::from_slice(signature.as_bytes())
-			.ok_or(TendermintCryptoError::MalformedSignature)?;
+			.ok_or_else(|| TendermintCryptoError::MalformedSignature)?;
 		let public_key = sp_core::ed25519::Public::from_slice(pubkey.to_bytes().as_slice())
 			.map_err(|_| TendermintCryptoError::MalformedPublicKey)?;
 		sp_io::crypto::ed25519_verify(&signature, msg, &public_key)
-			.then_some(())
-			.ok_or(TendermintCryptoError::VerificationFailed)
+			.then(|| ())
+			.ok_or_else(|| TendermintCryptoError::VerificationFailed)
 	}
 }
 

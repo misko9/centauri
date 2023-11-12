@@ -34,12 +34,7 @@ tendermint-proto = { git = "https://github.com/informalsystems/tendermint-rs", r
 
 [features]
 default     = ["std", "client"]
-std         = [
-	"base64/std",
-	"bytes/std",
-	"prost/std",
-	"serde/std"
-]
+std         = []
 client      = ["std", "tonic", "tonic/codegen", "tonic/transport", "tonic/prost"]
 json-schema = ["std", "schemars"]
 server      = ["std", "tonic", "tonic/codegen", "tonic/transport", "tonic/prost"]

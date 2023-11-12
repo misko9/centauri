@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{signer::ExtrinsicSigner, Error, ParachainClient};
+use crate::{
+	signer::ExtrinsicSigner, utils::unsafe_cast_to_jsonrpsee_client, Error, ParachainClient,
+};
 use codec::Decode;
 use finality_grandpa::BlockNumberOps;
 use futures::{Stream, StreamExt};
@@ -202,7 +204,7 @@ where
 	}
 
 	async fn subscribe_blocks(&self) -> Pin<Box<dyn Stream<Item = u64> + Send + Sync>> {
-		let para_client = self.para_ws_client.clone();
+		let para_client = unsafe { unsafe_cast_to_jsonrpsee_client(&self.para_ws_client) };
 		let stream = para_client
 			.subscribe::<T::Header, _>(
 				"chain_subscribeNewHeads",

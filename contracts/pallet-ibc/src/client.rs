@@ -46,7 +46,8 @@ where
 				.ok_or_else(|| ICS02Error::client_not_found(client_id.clone()))?;
 			let data = String::from_utf8(data).map_err(|e| {
 				ICS02Error::implementation_specific(format!(
-					"[client_type]: error decoding client type bytes to string {e}"
+					"[client_type]: error decoding client type bytes to string {}",
+					e
 				))
 			})?;
 			Ok(data)
@@ -110,8 +111,10 @@ where
 		let consensus_heights = ConsensusHeights::<T>::get(client_id.as_bytes().to_vec());
 		let cs_state = consensus_heights
 			.into_iter()
-			.find(|next_height| next_height > &height)
-			.and_then(|next_height| self.consensus_state(client_id, next_height).ok());
+			.filter(|next_height| next_height > &height)
+			.next()
+			.map(|next_height| self.consensus_state(client_id, next_height).ok())
+			.flatten();
 
 		Ok(cs_state)
 	}
@@ -127,7 +130,8 @@ where
 			.filter(|prev_height| prev_height < &height)
 			.rev()
 			.next()
-			.and_then(|prev_height| self.consensus_state(client_id, prev_height).ok());
+			.map(|prev_height| self.consensus_state(client_id, prev_height).ok())
+			.flatten();
 		Ok(cs_state)
 	}
 
@@ -143,7 +147,7 @@ where
 		use frame_support::traits::UnixTime;
 		let time = T::TimeProvider::now();
 		let ts = Timestamp::from_nanoseconds(time.as_nanos().saturated_into::<u64>())
-			.map_err(|e| panic!("{e:?}, caused by {time:?} from pallet timestamp_pallet"));
+			.map_err(|e| panic!("{:?}, caused by {:?} from pallet timestamp_pallet", e, time));
 		// Should not panic, if timestamp is invalid after the genesis block then there's a major
 		// error in pallet timestamp
 		ts.unwrap()
@@ -194,7 +198,8 @@ where
 		// frame_system's cache of header hashes
 		let height = u32::try_from(height.revision_height).map_err(|_| {
 			ICS02Error::implementation_specific(format!(
-				"[host_consensus_state]: Can't fit height: {height} in u32"
+				"[host_consensus_state]: Can't fit height: {} in u32",
+				height
 			))
 		})?;
 		let header_hash = frame_system::BlockHash::<T>::get(
@@ -203,25 +208,29 @@ where
 		// we don't even have the hash for this height (anymore?)
 		if header_hash == <T as frame_system::Config>::Hash::default() {
 			Err(ICS02Error::implementation_specific(format!(
-				"[host_consensus_state]: Unknown height {height}"
+				"[host_consensus_state]: Unknown height {}",
+				height
 			)))?
 		}
 
 		let connection_proof: HostConsensusProof =
 			codec::Decode::decode(&mut &proof[..]).map_err(|e| {
 				ICS02Error::implementation_specific(format!(
-					"[host_consensus_state]: Failed to decode proof: {e}"
+					"[host_consensus_state]: Failed to decode proof: {}",
+					e
 				))
 			})?;
 		let header = <T as frame_system::Config>::Header::decode(&mut &connection_proof.header[..])
 			.map_err(|e| {
 				ICS02Error::implementation_specific(format!(
-					"[host_consensus_state]: Failed to decode header: {e:?}"
+					"[host_consensus_state]: Failed to decode header: {:?}",
+					e
 				))
 			})?;
 		if header.hash() != header_hash {
 			Err(ICS02Error::implementation_specific(format!(
-				"[host_consensus_state]: Incorrect host consensus state for height {height}"
+				"[host_consensus_state]: Incorrect host consensus state for height {}",
+				height
 			)))?
 		}
 		let timestamp = {
@@ -251,7 +260,8 @@ where
 			Timestamp::from_nanoseconds(duration.as_nanos().saturated_into::<u64>())
 				.map_err(|e| {
 					ICS02Error::implementation_specific(format!(
-						"[host_consensus_state]: error decoding timestamp {e:?}"
+						"[host_consensus_state]: error decoding timestamp {:?}",
+						e
 					))
 				})?
 				.into_tm_time()
@@ -285,7 +295,7 @@ where
 						AnyConsensusState::wasm(cs).map_err(ICS02Error::encode)?
 					},
 					_ =>
-						if connection_proof.code_hash.is_some() {
+						if let Some(_) = connection_proof.code_hash {
 							log::trace!(target: "pallet_ibc", "in client : [host_consensus_state] >> using wasm code id");
 							AnyConsensusState::wasm(cs).map_err(ICS02Error::encode)?
 						} else {
@@ -368,8 +378,11 @@ where
 		{
 			let mut stored_heights = ConsensusHeights::<T>::get(client_id.as_bytes().to_vec());
 			if let Err(val) = stored_heights.try_insert(height) {
-				let first =
-					*stored_heights.iter().next().expect("Cannot fail as a value always exists");
+				let first = stored_heights
+					.iter()
+					.next()
+					.expect("Cannot fail as a value always exists")
+					.clone();
 				stored_heights.remove(&first);
 				stored_heights
 					.try_insert(val)
@@ -453,7 +466,8 @@ where
 		// this really shouldn't be possible
 		if latest_para_height >= block_number {
 			Err(ICS02Error::implementation_specific(format!(
-				"client has latest_para_height {latest_para_height} greater than or equal to chain height {block_number}"
+				"client has latest_para_height {} greater than or equal to chain height {block_number}",
+				latest_para_height
 			)))?
 		}
 

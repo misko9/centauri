@@ -21,7 +21,9 @@ use crate::{
 		AnyClientMessage, AnyClientState, AnyConsensusState, HostFunctionsManager, MockClientTypes,
 	},
 };
-use beefy_prover::helpers::{fetch_timestamp_extrinsic_with_proof, TimeStampExtWithProof};
+use beefy_prover::helpers::{
+	fetch_timestamp_extrinsic_with_proof, unsafe_arc_cast, TimeStampExtWithProof,
+};
 use codec::{Decode, Encode};
 use finality_grandpa_rpc::GrandpaApiClient;
 use futures::stream::StreamExt;
@@ -191,7 +193,9 @@ async fn test_continuous_update_of_grandpa_client() {
 	ctx.store_client_result(res.result).unwrap();
 	let subscription =
 		GrandpaApiClient::<JustificationNotification, H256, u32>::subscribe_justifications(
-			&*prover.relay_ws_client.clone(),
+			&*unsafe {
+				unsafe_arc_cast::<_, jsonrpsee_ws_client::WsClient>(prover.relay_ws_client.clone())
+			},
 		)
 		.await
 		.expect("Failed to subscribe to grandpa justifications");
@@ -208,7 +212,9 @@ async fn test_continuous_update_of_grandpa_client() {
 
 		let encoded = finality_grandpa_rpc::GrandpaApiClient::<JustificationNotification, H256, u32>::prove_finality(
 			// we cast between the same type but different crate versions.
-			&*prover.relay_ws_client.clone(),
+			&*unsafe {
+				unsafe_arc_cast::<_, jsonrpsee_ws_client::WsClient>(prover.relay_ws_client.clone())
+			},
 			next_relay_height,
 		)
 			.await

@@ -1,8 +1,7 @@
 use super::super::*;
 use crate::routing::Context;
 use frame_support::traits::{
-	fungibles::Mutate,
-	tokens::{Fortitude, Precision},
+	fungibles::{Mutate, Transfer},
 	Currency, Get,
 };
 use ibc::{
@@ -89,7 +88,7 @@ where
 			<T::NativeCurrency as Currency<<T as frame_system::Config>::AccountId>>::transfer(
 				&from.clone().into_account(),
 				&to.clone().into_account(),
-				amount,
+				amount.into(),
 				frame_support::traits::ExistenceRequirement::AllowDeath,
 			)
 			.map_err(|e| {
@@ -97,12 +96,12 @@ where
 				Ics20Error::invalid_token()
 			})?;
 		} else {
-			<<T as Config>::Fungibles as Mutate<<T as frame_system::Config>::AccountId>>::transfer(
-				asset_id.clone(),
+			<<T as Config>::Fungibles as Transfer<<T as frame_system::Config>::AccountId>>::transfer(
+				asset_id.into(),
 				&from.clone().into_account(),
 				&to.clone().into_account(),
 				amount,
-				frame_support::traits::tokens::Preservation::Expendable,
+				false,
 			)
 			.map_err(|e| {
 				log::debug!(target: "pallet_ibc", "Failed to transfer ibc asset: {asset_id:?}, denom: {denom}, error: {e:?}");
@@ -125,7 +124,7 @@ where
 			.map_err(|_err| Ics20Error::invalid_token())?;
 
 		<<T as Config>::Fungibles as Mutate<<T as frame_system::Config>::AccountId>>::mint_into(
-			asset_id,
+			asset_id.into(),
 			&account.clone().into_account(),
 			amount,
 		)
@@ -147,11 +146,9 @@ where
 		let asset_id = T::IbcDenomToAssetIdConversion::from_denom_to_asset_id(&denom)
 			.map_err(|_| Ics20Error::invalid_token())?;
 		<<T as Config>::Fungibles as Mutate<<T as frame_system::Config>::AccountId>>::burn_from(
-			asset_id,
+			asset_id.into(),
 			&account.clone().into_account(),
 			amount,
-			Precision::Exact,
-			Fortitude::Force,
 		)
 		.map_err(|e| {
 			log::debug!(target: "pallet_ibc", "Failed to burn tokens: {:?}", e);

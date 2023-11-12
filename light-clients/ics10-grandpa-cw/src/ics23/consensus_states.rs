@@ -51,11 +51,11 @@ impl<'a> ConsensusStates<'a> {
 	}
 
 	pub fn consensus_state_client_key() -> Vec<u8> {
-		"consensusStates/".to_string().into_bytes()
+		format!("consensusStates/").into_bytes()
 	}
 
 	pub fn consensus_state_height_key(height: Height) -> Vec<u8> {
-		format!("{height}").into_bytes()
+		format!("{}", height).into_bytes()
 	}
 
 	pub fn consensus_state_key(height: Height) -> (Vec<u8>, Vec<u8>) {
@@ -120,7 +120,7 @@ impl<'a> ReadonlyConsensusStates<'a> {
 #[cw_serde]
 pub struct FakeInner;
 
-impl TryFrom<Any> for FakeInner {
+impl<'a> TryFrom<Any> for FakeInner {
 	type Error = Infallible;
 
 	fn try_from(_: Any) -> Result<Self, Self::Error> {

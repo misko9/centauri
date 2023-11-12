@@ -161,7 +161,7 @@ pub fn sudo(
 	let client = GrandpaClient::<HostFunctions>::default();
 	let mut ctx = Context::<HostFunctions>::new(deps, env);
 	let client_id = ClientId::from_str("08-wasm-0").expect("client id is valid");
-	let data = process_message(msg, client, &mut ctx, client_id)?;
+	let data = process_message(msg, client, &mut ctx, client_id.clone())?;
 	let mut response = Response::default();
 	response.data = Some(data);
 	Ok(response)
@@ -204,7 +204,7 @@ fn process_message(
 					let from = client_state.latest_relay_hash;
 					let mut finalized =
 						ancestry.ancestry(from, header.finality_proof.block).map_err(|_| {
-							ContractError::Grandpa("[update_state] Invalid ancestry!".to_string())
+							ContractError::Grandpa(format!("[update_state] Invalid ancestry!"))
 						})?;
 					finalized.reverse();
 					finalized

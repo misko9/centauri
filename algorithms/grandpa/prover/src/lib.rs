@@ -19,7 +19,9 @@
 
 use anyhow::anyhow;
 pub use beefy_prover;
-use beefy_prover::helpers::{fetch_timestamp_extrinsic_with_proof, TimeStampExtWithProof};
+use beefy_prover::helpers::{
+	fetch_timestamp_extrinsic_with_proof, unsafe_arc_cast, TimeStampExtWithProof,
+};
 use codec::{Decode, Encode};
 use finality_grandpa_rpc::GrandpaApiClient;
 use jsonrpsee::{async_client::Client, tracing::log, ws_client::WsClientBuilder};
@@ -30,8 +32,8 @@ use primitives::{
 };
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sp_consensus_grandpa::{AuthorityId, AuthoritySignature};
 use sp_core::H256;
+use sp_finality_grandpa::{AuthorityId, AuthoritySignature};
 use sp_runtime::traits::{One, Zero};
 use std::{
 	collections::{BTreeMap, BTreeSet},
@@ -136,7 +138,7 @@ where
 	where
 		<T as subxt::Config>::Header: Decode,
 	{
-		use sp_consensus_grandpa::AuthorityList;
+		use sp_finality_grandpa::AuthorityList;
 		let latest_relay_hash = self.relay_client.rpc().finalized_head().await.unwrap();
 		log::debug!(target: "hyperspace", "Latest relay hash: {:?}", latest_relay_hash);
 		let header = self
@@ -262,7 +264,11 @@ where
 		} else {
 			let encoded = GrandpaApiClient::<JustificationNotification, H256, u32>::prove_finality(
 				// we cast between the same type but different crate versions.
-				&*self.relay_ws_client.clone(),
+				&*unsafe {
+					unsafe_arc_cast::<_, jsonrpsee_ws_client::WsClient>(
+						self.relay_ws_client.clone(),
+					)
+				},
 				latest_finalized_height,
 			)
 			.await?
@@ -465,13 +471,8 @@ where
 
 	/// Returns the session length in blocks
 	pub async fn session_length(&self) -> Result<u32, anyhow::Error> {
-		let metadata = self.relay_client.rpc().metadata().await?;
-		let metadata = metadata
-			.pallet_by_name("Babe")
-			.expect("pallet exists")
-			.constant_by_name("EpochDuration")
-			.expect("constant exists");
-		let md = metadata.value().to_vec();
-		Ok(Decode::decode(&mut &md[..])?)
+		let metadata = self.relay_client.rpc().metadata(None).await?;
+		let metadata = metadata.pallet("Babe")?.constant("EpochDuration")?;
+		Ok(Decode::decode(&mut &metadata.value[..])?)
 	}
 }

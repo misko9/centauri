@@ -20,7 +20,6 @@ macro_rules! chains {
 	)*) => {
 		#[derive(Debug, Serialize, Deserialize, Clone)]
 		#[serde(tag = "type", rename_all = "snake_case")]
-		#[allow(clippy::large_enum_variant)]
 		pub enum AnyConfig {
 			$(
 				$(#[$($meta)*])*

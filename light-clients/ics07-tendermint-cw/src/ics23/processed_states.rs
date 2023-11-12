@@ -26,21 +26,21 @@ impl<'a> ProcessedStates<'a> {
 	}
 
 	pub fn processed_time_key(height: Height, prefix: &mut Vec<u8>) -> Vec<u8> {
-		prefix.append(&mut "consensusStates/".to_string().into_bytes());
-		prefix.append(&mut format!("{height}").into_bytes());
-		prefix.append(&mut "/processedTime".to_string().into_bytes());
+		prefix.append(&mut format!("consensusStates/").into_bytes());
+		prefix.append(&mut format!("{}", height).into_bytes());
+		prefix.append(&mut format!("/processedTime").into_bytes());
 		prefix.clone()
 	}
 
 	pub fn processed_height_key(height: Height, prefix: &mut Vec<u8>) -> Vec<u8> {
-		prefix.append(&mut "consensusStates/".to_string().into_bytes());
-		prefix.append(&mut format!("{height}").into_bytes());
-		prefix.append(&mut "/processedHeight".to_string().into_bytes());
+		prefix.append(&mut format!("consensusStates/").into_bytes());
+		prefix.append(&mut format!("{}", height).into_bytes());
+		prefix.append(&mut format!("/processedHeight").into_bytes());
 		prefix.clone()
 	}
 
 	pub fn iteration_key(height: Height, prefix: &mut Vec<u8>) -> Vec<u8> {
-		prefix.append(&mut "iterateConsensusStates".to_string().into_bytes());
+		prefix.append(&mut format!("iterateConsensusStates").into_bytes());
 		prefix.append(&mut height.revision_number.to_be_bytes().to_vec());
 		prefix.append(&mut height.revision_height.to_be_bytes().to_vec());
 		prefix.clone()
@@ -48,9 +48,10 @@ impl<'a> ProcessedStates<'a> {
 
 	pub fn get_processed_time(&self, height: Height, prefix: &mut Vec<u8>) -> Option<u64> {
 		let full_key = Self::processed_time_key(height, prefix);
-		self.0
-			.get(&full_key)
-			.map(|timestamp| u64::from_be_bytes(timestamp.try_into().unwrap()))
+		match self.0.get(&full_key) {
+			Some(timestamp) => Some(u64::from_be_bytes(timestamp.try_into().unwrap())),
+			None => None,
+		}
 	}
 
 	pub fn set_processed_time(&mut self, height: Height, timestamp: u64, prefix: &mut Vec<u8>) {
@@ -61,9 +62,10 @@ impl<'a> ProcessedStates<'a> {
 
 	pub fn get_processed_height(&self, height: Height, prefix: &mut Vec<u8>) -> Option<u64> {
 		let full_key = Self::processed_height_key(height, prefix);
-		self.0
-			.get(&full_key)
-			.map(|height| u64::from_be_bytes(height.try_into().unwrap()))
+		match self.0.get(&full_key) {
+			Some(height) => Some(u64::from_be_bytes(height.try_into().unwrap())),
+			None => None,
+		}
 	}
 
 	pub fn set_processed_height(
@@ -90,13 +92,13 @@ impl<'a> ProcessedStates<'a> {
 
 	pub fn set_iteration_key(&mut self, height: Height, prefix: &mut Vec<u8>) {
 		let full_key = Self::iteration_key(height, prefix);
-		let height_vec = format!("{height}").into_bytes();
+		let height_vec = format!("{}", height).into_bytes();
 		self.0.set(&full_key, &height_vec);
 	}
 
 	pub fn get_earliest_height(&mut self, current_height: Height) -> Option<Height> {
 		let full_key = Self::iteration_key(current_height, &mut Vec::new());
-		let start_key = "iterateConsensusStates".to_string().into_bytes();
+		let start_key = format!("iterateConsensusStates").into_bytes();
 		let mut iterator = self.0.range(Some(&start_key), Some(&full_key), Order::Ascending);
 		match iterator.next() {
 			Some((_, height)) => match std::str::from_utf8(height.as_slice()) {
@@ -127,16 +129,18 @@ impl<'a> ReadonlyProcessedStates<'a> {
 
 	pub fn get_processed_time(&self, height: Height, prefix: &mut Vec<u8>) -> Option<u64> {
 		let full_key = ProcessedStates::processed_time_key(height, prefix);
-		self.0
-			.get(&full_key)
-			.map(|timestamp| u64::from_be_bytes(timestamp.try_into().unwrap()))
+		match self.0.get(&full_key) {
+			Some(timestamp) => Some(u64::from_be_bytes(timestamp.try_into().unwrap())),
+			None => None,
+		}
 	}
 
 	pub fn get_processed_height(&self, height: Height, prefix: &mut Vec<u8>) -> Option<u64> {
 		let full_key = ProcessedStates::processed_height_key(height, prefix);
-		self.0
-			.get(&full_key)
-			.map(|height| u64::from_be_bytes(height.try_into().unwrap()))
+		match self.0.get(&full_key) {
+			Some(height) => Some(u64::from_be_bytes(height.try_into().unwrap())),
+			None => None,
+		}
 	}
 
 	pub fn get_iteration_key(&self, height: Height, prefix: &mut Vec<u8>) -> Option<Height> {
@@ -177,32 +181,40 @@ impl<'a> ReadonlyProcessedStates<'a> {
 	pub fn get_metadata(&self) -> Option<Vec<GenesisMetadata>> {
 		let mut gm: Vec<GenesisMetadata> = Vec::<GenesisMetadata>::new();
 
-		let start_key = "iterateConsensusStates".to_string().into_bytes();
-		let iterator = self.0.range(Some(&start_key), None, Order::Ascending);
-		for (_, height) in iterator {
-			match std::str::from_utf8(height.as_slice()) {
-				Ok(height_str) => {
-					let height = Height::try_from(height_str).unwrap();
-					let processed_height_key =
-						ProcessedStates::processed_height_key(height, &mut Vec::new());
-					gm.push(GenesisMetadata {
-						key: processed_height_key.clone(),
-						value: self.0.get(&processed_height_key).unwrap(),
-					});
-					let processed_time_key =
-						ProcessedStates::processed_time_key(height, &mut Vec::new());
-					gm.push(GenesisMetadata {
-						key: processed_time_key.clone(),
-						value: self.0.get(&processed_time_key).unwrap(),
-					});
+		let start_key = format!("iterateConsensusStates").into_bytes();
+		let mut iterator = self.0.range(Some(&start_key), None, Order::Ascending);
+		loop {
+			match iterator.next() {
+				Some((_, height)) => match std::str::from_utf8(height.as_slice()) {
+					Ok(height_str) => {
+						let height = Height::try_from(height_str).unwrap();
+						let processed_height_key =
+							ProcessedStates::processed_height_key(height, &mut Vec::new());
+						gm.push(GenesisMetadata {
+							key: processed_height_key.clone(),
+							value: self.0.get(&processed_height_key).unwrap(),
+						});
+						let processed_time_key =
+							ProcessedStates::processed_time_key(height, &mut Vec::new());
+						gm.push(GenesisMetadata {
+							key: processed_time_key.clone(),
+							value: self.0.get(&processed_time_key).unwrap(),
+						});
+					},
+					Err(_) => break,
 				},
-				Err(_) => break,
+				None => break,
 			}
 		}
 
-		let iterator = self.0.range(Some(&start_key), None, Order::Ascending);
-		for (key, height) in iterator {
-			gm.push(GenesisMetadata { key, value: height });
+		let mut iterator = self.0.range(Some(&start_key), None, Order::Ascending);
+		loop {
+			match iterator.next() {
+				Some((key, height)) => {
+					gm.push(GenesisMetadata { key, value: height });
+				},
+				None => break,
+			}
 		}
 		Some(gm)
 	}

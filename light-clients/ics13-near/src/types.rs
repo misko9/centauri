@@ -14,11 +14,9 @@
 // limitations under the License.
 
 use alloc::vec::Vec;
+use borsh::maybestd::{io::Write, string::String};
 
-use borsh::{
-	maybestd::{io, string::String},
-	BorshDeserialize, BorshSerialize,
-};
+use borsh::{BorshDeserialize, BorshSerialize};
 use sp_core::ed25519::{Public as Ed25519Public, Signature as Ed25519Signature};
 
 use crate::client_def::HostFunctions;
@@ -240,15 +238,15 @@ pub struct MerklePathItem {
 }
 
 impl BorshDeserialize for Signature {
-	fn deserialize_reader<R: io::Read>(rd: &mut R) -> io::Result<Self> {
-		read_key_type(rd)?;
-		let array = BorshDeserialize::deserialize_reader(rd)?;
+	fn deserialize(buf: &mut &[u8]) -> Result<Self, borsh::maybestd::io::Error> {
+		let _key_type: [u8; 1] = BorshDeserialize::deserialize(buf)?;
+		let array: [u8; Self::LEN] = BorshDeserialize::deserialize(buf)?;
 		Ok(Signature::Ed25519(Ed25519Signature::from_raw(array)))
 	}
 }
 
 impl BorshSerialize for Signature {
-	fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
+	fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), borsh::maybestd::io::Error> {
 		match self {
 			Signature::Ed25519(signature) => {
 				BorshSerialize::serialize(&0u8, writer)?;
@@ -260,7 +258,7 @@ impl BorshSerialize for Signature {
 }
 
 impl BorshSerialize for PublicKey {
-	fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
+	fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), borsh::maybestd::io::Error> {
 		BorshSerialize::serialize(&0u8, writer)?;
 		writer.write_all(&self.0)?;
 		Ok(())
@@ -268,16 +266,9 @@ impl BorshSerialize for PublicKey {
 }
 
 impl BorshDeserialize for PublicKey {
-	fn deserialize_reader<R: io::Read>(rd: &mut R) -> io::Result<Self> {
-		read_key_type(rd)?;
-		BorshDeserialize::deserialize_reader(rd).map(Self)
-	}
-}
-
-fn read_key_type<R: io::Read>(rd: &mut R) -> io::Result<()> {
-	match u8::deserialize_reader(rd)? {
-		8 => Ok(()),
-		key_type => Err(io::ErrorKind::InvalidData.into()),
+	fn deserialize(buf: &mut &[u8]) -> Result<Self, borsh::maybestd::io::Error> {
+		let _key_type: [u8; 1] = BorshDeserialize::deserialize(buf)?;
+		Ok(Self(BorshDeserialize::deserialize(buf)?))
 	}
 }
 

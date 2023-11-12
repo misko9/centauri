@@ -3,12 +3,12 @@ use crate::{
 	light_clients::{AnyClientState, AnyConsensusState},
 	mock::*,
 	routing::Context,
-	Any, Config, ConsensusHeights, DenomToAssetId, Event, MultiAddress, Pallet,
-	PendingRecvPacketSeqs, PendingSendPacketSeqs, Timeout, TransferParams, MODULE_ID,
+	Any, Config, ConsensusHeights, DenomToAssetId, MultiAddress, Pallet, PendingRecvPacketSeqs,
+	PendingSendPacketSeqs, Timeout, TransferParams, MODULE_ID,
 };
 use core::time::Duration;
 use frame_support::{
-	assert_noop, assert_ok,
+	assert_ok,
 	traits::{
 		fungibles::{Inspect, Mutate},
 		Currency, Hooks, Len,
@@ -16,10 +16,7 @@ use frame_support::{
 	weights::Weight,
 };
 use ibc::{
-	applications::transfer::{
-		acknowledgement::Acknowledgement as Ics20Acknowledgement, packet::PacketData, Coin,
-		PrefixedDenom, VERSION,
-	},
+	applications::transfer::{packet::PacketData, Coin, PrefixedDenom, VERSION},
 	core::{
 		ics02_client::{
 			client_state::ClientState,
@@ -36,10 +33,7 @@ use ibc::{
 		ics04_channel::{
 			channel::{ChannelEnd, Counterparty as ChanCounterParty, Order, State},
 			context::{ChannelKeeper, ChannelReader},
-			msgs::{
-				acknowledgement::{Acknowledgement, MsgAcknowledgement},
-				recv_packet::MsgRecvPacket,
-			},
+			msgs::recv_packet::MsgRecvPacket,
 			packet::Packet,
 			Version as ChanVersion,
 		},
@@ -60,10 +54,7 @@ use sp_runtime::{
 	traits::{Bounded, IdentifyAccount},
 	AccountId32,
 };
-use std::{
-	str::FromStr,
-	time::{SystemTime, UNIX_EPOCH},
-};
+use std::str::FromStr;
 use tendermint_proto::Protobuf;
 
 fn setup_client_and_consensus_state(port_id: PortId) {
@@ -225,12 +216,12 @@ fn send_transfer() {
 		setup_client_and_consensus_state(PortId::transfer());
 		let asset_id =
 			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICA",
+				&"PICA".to_string(),
 			)
 			.unwrap();
 		let _ = <<Test as Config>::NativeCurrency as Currency<
 			<Test as frame_system::Config>::AccountId,
-		>>::deposit_creating(&AccountId32::new([0; 32]), balance);
+		>>::deposit_creating(&AccountId32::new([0; 32]), balance.into());
 
 		let timeout = Timeout::Offset { timestamp: Some(1000), height: Some(5) };
 
@@ -272,66 +263,6 @@ fn send_transfer() {
 }
 
 #[test]
-fn send_transfer_with_invalid_memo() {
-	let mut ext = new_test_ext();
-	let balance = 100000 * MILLIS;
-	ext.execute_with(|| {
-		let pair = sp_core::sr25519::Pair::from_seed(b"12345678901234567890123456789012");
-		let ss58_address =
-			ibc_primitives::runtime_interface::account_id_to_ss58(pair.public().0, 49);
-		setup_client_and_consensus_state(PortId::transfer());
-		let asset_id =
-			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICA",
-			)
-			.unwrap();
-		let _ = <<Test as Config>::NativeCurrency as Currency<
-			<Test as frame_system::Config>::AccountId,
-		>>::deposit_creating(&AccountId32::new([0; 32]), balance);
-
-		let timeout = Timeout::Offset { timestamp: Some(1000), height: Some(5) };
-
-		let ctx = Context::<Test>::default();
-		let channel_end = ctx
-			.channel_end(&(PortId::transfer(), ChannelId::new(0)))
-			.expect("expect source_channel unwrap");
-		let destination_channel = channel_end.counterparty().channel_id.unwrap();
-		Ibc::add_channels_to_feeless_channel_list(
-			RuntimeOrigin::root(),
-			0,
-			destination_channel.sequence(),
-		)
-		.expect("expect add channels to feeless list");
-
-		let result = Ibc::transfer(
-			RuntimeOrigin::signed(AccountId32::new([0; 32])),
-			TransferParams {
-				to: MultiAddress::Raw(ss58_address.as_bytes().to_vec()),
-				source_channel: 0,
-				timeout: timeout.clone(),
-			},
-			asset_id,
-			balance,
-			Some(RawMemo("{}".to_string())),
-		);
-		assert_ok!(result);
-
-		let result = Ibc::transfer(
-			RuntimeOrigin::signed(AccountId32::new([0; 32])),
-			TransferParams {
-				to: MultiAddress::Raw(ss58_address.as_bytes().to_vec()),
-				source_channel: 0,
-				timeout: timeout.clone(),
-			},
-			asset_id,
-			balance,
-			Some(RawMemo("invalid memo".to_string())),
-		);
-		assert_noop!(result, crate::Error::<Test>::InvalidMemo);
-	});
-}
-
-#[test]
 fn send_transfer_no_fee_feeless_channels() {
 	let mut ext = new_test_ext();
 	let balance = 100000 * MILLIS;
@@ -342,12 +273,12 @@ fn send_transfer_no_fee_feeless_channels() {
 		setup_client_and_consensus_state(PortId::transfer());
 		let asset_id =
 			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICA",
+				&"PICA".to_string(),
 			)
 			.unwrap();
 		let _ = <<Test as Config>::NativeCurrency as Currency<
 			<Test as frame_system::Config>::AccountId,
-		>>::deposit_creating(&AccountId32::new([0; 32]), balance);
+		>>::deposit_creating(&AccountId32::new([0; 32]), balance.into());
 
 		let timeout = Timeout::Offset { timestamp: Some(1000), height: Some(5) };
 
@@ -357,7 +288,7 @@ fn send_transfer_no_fee_feeless_channels() {
 			.expect("expect source_channel unwrap");
 		let destination_channel = channel_end.counterparty().channel_id.unwrap();
 		//feeless channels
-		Ibc::add_channels_to_feeless_channel_list(
+		let _ = Ibc::add_channels_to_feeless_channel_list(
 			RuntimeOrigin::root(),
 			0,
 			destination_channel.sequence(),
@@ -411,7 +342,7 @@ fn on_deliver_ics20_recv_packet() {
 		frame_system::Pallet::<Test>::set_block_number(1u32);
 		let asset_id =
 			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICA",
+				&"PICA".to_string(),
 			)
 			.unwrap();
 		setup_client_and_consensus_state(PortId::transfer());
@@ -437,10 +368,10 @@ fn on_deliver_ics20_recv_packet() {
 
 		let prefixed_denom = PrefixedDenom::from_str(denom).unwrap();
 		let amt = 1000 * MILLIS;
-		println!("Transferred Amount {amt}");
+		println!("Transferred Amount {}", amt);
 		let coin = Coin {
 			denom: prefixed_denom,
-			amount: ibc::applications::transfer::Amount::from_str(&format!("{amt:?}")).unwrap(),
+			amount: ibc::applications::transfer::Amount::from_str(&format!("{:?}", amt)).unwrap(),
 		};
 		let packet_data = PacketData {
 			token: coin,
@@ -450,7 +381,6 @@ fn on_deliver_ics20_recv_packet() {
 		};
 
 		let data = serde_json::to_vec(&packet_data).unwrap();
-		let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
 		let packet = Packet {
 			sequence: 1u64.into(),
 			source_port: PortId::transfer(),
@@ -460,7 +390,7 @@ fn on_deliver_ics20_recv_packet() {
 			data,
 			timeout_height: Height::new(2000, 5),
 			timeout_timestamp: ibc::timestamp::Timestamp::from_nanoseconds(
-				time_now as u64 + 10000000,
+				1690894363u64.saturating_mul(1000000000),
 			)
 			.unwrap(),
 		};
@@ -500,144 +430,6 @@ fn on_deliver_ics20_recv_packet() {
 }
 
 #[test]
-fn on_deliver_ics20_recv_packet_incorrect_memo() {
-	let mut ext = new_test_ext();
-	ext.execute_with(|| {
-		let incorrect_memo = "Incorrect memo".to_string();
-		// Create  a new account
-		let pair = sp_core::sr25519::Pair::from_seed(b"12345678901234567890123456789012");
-		let reciever = AccountId32::new(pair.public().0);
-		let ss58_address =
-			ibc_primitives::runtime_interface::account_id_to_ss58(pair.public().0, 49);
-		frame_system::Pallet::<Test>::set_block_number(1u32);
-		let asset_id =
-			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				&"PICA".to_string(),
-			)
-			.unwrap();
-		setup_client_and_consensus_state(PortId::transfer());
-
-		let channel_id = ChannelId::new(0);
-		let balance = 100000 * MILLIS;
-
-		// We are simulating a transfer back to the source chain
-
-		let denom = "transfer/channel-1/PICA";
-		let channel_escrow_address =
-			get_channel_escrow_address(&PortId::transfer(), channel_id).unwrap();
-		let channel_escrow_address =
-			<Test as Config>::AccountIdConversion::try_from(channel_escrow_address)
-				.map_err(|_| ())
-				.unwrap();
-		let channel_escrow_address = channel_escrow_address.into_account();
-
-		// Endow escrow address with tokens
-		let _ = <<Test as Config>::NativeCurrency as Currency<
-			<Test as frame_system::Config>::AccountId,
-		>>::deposit_creating(&channel_escrow_address, balance);
-
-		let prefixed_denom = PrefixedDenom::from_str(denom).unwrap();
-		let amt = 1000 * MILLIS;
-		println!("Transferred Amount {}", amt);
-		let coin = Coin {
-			denom: prefixed_denom,
-			amount: ibc::applications::transfer::Amount::from_str(&format!("{:?}", amt)).unwrap(),
-		};
-		let packet_data = PacketData {
-			token: coin,
-			sender: Signer::from_str("alice").unwrap(),
-			receiver: Signer::from_str(&ss58_address).unwrap(),
-			memo: incorrect_memo.clone(),
-		};
-
-		let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-
-		let data = serde_json::to_vec(&packet_data).unwrap();
-		let packet = Packet {
-			sequence: 1u64.into(),
-			source_port: PortId::transfer(),
-			source_channel: ChannelId::new(1),
-			destination_port: PortId::transfer(),
-			destination_channel: ChannelId::new(0),
-			data,
-			timeout_height: Height::new(2000, 5),
-			timeout_timestamp: ibc::timestamp::Timestamp::from_nanoseconds(
-				time_now as u64 + 10000000,
-			)
-			.unwrap(),
-		};
-
-		let msg = MsgRecvPacket {
-			packet,
-			proofs: Proofs::new(
-				vec![0u8; 32].try_into().unwrap(),
-				None,
-				None,
-				None,
-				Height::new(0, 1),
-			)
-			.unwrap(),
-			signer: Signer::from_str(MODULE_ID).unwrap(),
-		};
-
-		let msg = Any { type_url: msg.type_url(), value: msg.encode_vec().unwrap() };
-
-		let account_data = Assets::balance(asset_id, AccountId32::new(pair.public().0));
-		// Assert account balance before transfer
-		assert_eq!(account_data, 0);
-		Ibc::deliver(RuntimeOrigin::signed(AccountId32::new([0; 32])), vec![msg]).unwrap();
-
-		let balance = <<Test as Config>::NativeCurrency as Currency<
-			<Test as frame_system::Config>::AccountId,
-		>>::free_balance(&reciever);
-
-		let pallet_balance =
-			<<Test as Config>::NativeCurrency as Currency<
-				<Test as frame_system::Config>::AccountId,
-			>>::free_balance(&<Test as crate::Config>::FeeAccount::get().into_account());
-		let fee = <Test as crate::ics20_fee::Config>::ServiceChargeIn::get() * amt;
-		assert_eq!(balance, amt - fee);
-		assert_eq!(pallet_balance, fee);
-
-		// let test_event = TestEvent::PalletIbc($event);
-		assert_eq!(
-			System::events()
-				.iter()
-				.filter(|a| {
-					if let RuntimeEvent::Ibc(ibc_event) = &a.event {
-						if let Event::<Test>::ExecuteMemoStarted { memo, .. } = ibc_event {
-							return memo.as_ref().map_or(false, |m| m == &incorrect_memo)
-						}
-					}
-					false
-				})
-				.count(),
-			1
-		);
-
-		assert_eq!(
-			System::events()
-				.iter()
-				.filter(|a| {
-					if let RuntimeEvent::Ibc(ibc_event) = &a.event {
-						if let Event::<Test>::ExecuteMemoIbcTokenTransferFailedWithReason {
-							memo,
-							reason,
-							from,
-						} = ibc_event
-						{
-							return memo == &incorrect_memo && *reason == 0 && from == &reciever
-						}
-					}
-					false
-				})
-				.count(),
-			1
-		);
-	})
-}
-
-#[test]
 fn on_deliver_ics20_recv_packet_with_flat_fee() {
 	let mut ext = new_test_ext();
 	ext.execute_with(|| {
@@ -648,7 +440,7 @@ fn on_deliver_ics20_recv_packet_with_flat_fee() {
 		frame_system::Pallet::<Test>::set_block_number(1u32);
 		let asset_id =
 			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICAFLATFEE",
+				&"PICAFLATFEE".to_string(),
 			)
 			.unwrap();
 		setup_client_and_consensus_state(PortId::transfer());
@@ -675,10 +467,10 @@ fn on_deliver_ics20_recv_packet_with_flat_fee() {
 
 		let prefixed_denom = PrefixedDenom::from_str(denom).unwrap();
 		let amt = 1000 * MILLIS;
-		println!("Transferred Amount {amt}");
+		println!("Transferred Amount {}", amt);
 		let coin = Coin {
 			denom: prefixed_denom,
-			amount: ibc::applications::transfer::Amount::from_str(&format!("{amt:?}")).unwrap(),
+			amount: ibc::applications::transfer::Amount::from_str(&format!("{:?}", amt)).unwrap(),
 		};
 		let packet_data = PacketData {
 			token: coin,
@@ -687,7 +479,6 @@ fn on_deliver_ics20_recv_packet_with_flat_fee() {
 			memo: "".to_string(),
 		};
 
-		let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
 		let data = serde_json::to_vec(&packet_data).unwrap();
 		let packet = Packet {
 			sequence: 1u64.into(),
@@ -698,7 +489,7 @@ fn on_deliver_ics20_recv_packet_with_flat_fee() {
 			data,
 			timeout_height: Height::new(2000, 5),
 			timeout_timestamp: ibc::timestamp::Timestamp::from_nanoseconds(
-				time_now as u64 + 10000000,
+				1690894363u64.saturating_mul(1000000000),
 			)
 			.unwrap(),
 		};
@@ -739,85 +530,6 @@ fn on_deliver_ics20_recv_packet_with_flat_fee() {
 }
 
 #[test]
-fn on_ack_transfer_with_custom_success_result() {
-	let mut ext = new_test_ext();
-	let _ = env_logger::try_init();
-	ext.execute_with(|| {
-		// Create  a new account
-		let pair = sp_core::sr25519::Pair::from_seed(b"12345678901234567890123456789012");
-		frame_system::Pallet::<Test>::set_block_number(1u32);
-		let asset_id =
-			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICAFLATFEE",
-			)
-			.unwrap();
-		setup_client_and_consensus_state(PortId::transfer());
-
-		let channel_id = ChannelId::new(0);
-		let balance = 100000 * MILLIS;
-
-		// We are simulating a transfer back to the source chain
-		let acc = AccountId32::new(pair.public().0);
-
-		// Endow escrow address with tokens
-		<<Test as Config>::Fungibles as Mutate<
-			<Test as frame_system::Config>::AccountId,
-		>>::mint_into(asset_id, &acc, balance)
-		.unwrap();
-
-		let init_balance = <Assets as Inspect<AccountId>>::balance(asset_id, &acc);
-		let amt = 1000 * MILLIS;
-		println!("Transferred Amount {amt}");
-
-		assert_ok!(Ibc::transfer(
-			RuntimeOrigin::signed(acc.clone()),
-			TransferParams {
-				to: MultiAddress::Raw(vec![42; 10]),
-				source_channel: channel_id.sequence(),
-				timeout: Timeout::Offset { timestamp: None, height: Some(1) },
-			},
-			asset_id,
-			amt,
-			None,
-		));
-
-		let packet_info = Ibc::get_send_packet_info(
-			channel_id.to_string().as_bytes().to_vec(),
-			PortId::transfer().as_bytes().to_vec(),
-			vec![1],
-		)
-		.unwrap()
-		.get(0)
-		.unwrap()
-		.clone();
-		let packet = Packet::from(packet_info);
-
-		let msg = MsgAcknowledgement {
-			packet,
-			acknowledgement: Acknowledgement::from_bytes(
-				Ics20Acknowledgement::Result(r#"{"contract_result":1}"#.to_string())
-					.to_string()
-					.into_bytes(),
-			),
-			proofs: Proofs::new(
-				vec![0u8; 32].try_into().unwrap(),
-				None,
-				None,
-				None,
-				Height::new(0, 1),
-			)
-			.unwrap(),
-			signer: Signer::from_str(MODULE_ID).unwrap(),
-		};
-		let msg = Any { type_url: msg.type_url(), value: msg.encode_vec().unwrap() };
-		Ibc::deliver(RuntimeOrigin::signed(AccountId32::new([0; 32])), vec![msg]).unwrap();
-
-		let balance = <Assets as Inspect<AccountId>>::balance(asset_id, &acc);
-		assert_eq!(balance, init_balance - amt);
-	})
-}
-
-#[test]
 fn on_deliver_ics20_recv_packet_transfered_amount_less_then_flat_fee() {
 	let mut ext = new_test_ext();
 	ext.execute_with(|| {
@@ -828,7 +540,7 @@ fn on_deliver_ics20_recv_packet_transfered_amount_less_then_flat_fee() {
 		frame_system::Pallet::<Test>::set_block_number(1u32);
 		let asset_id =
 			<<Test as Config>::IbcDenomToAssetIdConversion as DenomToAssetId<Test>>::from_denom_to_asset_id(
-				"PICAFLATFEE",
+				&"PICAFLATFEE".to_string(),
 			)
 			.unwrap();
 		setup_client_and_consensus_state(PortId::transfer());
@@ -862,10 +574,10 @@ fn on_deliver_ics20_recv_packet_transfered_amount_less_then_flat_fee() {
 			usdt_fee_amount,
 		)
 		.unwrap_or_default();
-		println!("Transferred Amount {amt}");
+		println!("Transferred Amount {}", amt);
 		let coin = Coin {
 			denom: prefixed_denom,
-			amount: ibc::applications::transfer::Amount::from_str(&format!("{amt:?}")).unwrap(),
+			amount: ibc::applications::transfer::Amount::from_str(&format!("{:?}", amt)).unwrap(),
 		};
 		let packet_data = PacketData {
 			token: coin,
@@ -874,7 +586,6 @@ fn on_deliver_ics20_recv_packet_transfered_amount_less_then_flat_fee() {
 			memo: "".to_string(),
 		};
 
-		let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
 		let data = serde_json::to_vec(&packet_data).unwrap();
 		let packet = Packet {
 			sequence: 1u64.into(),
@@ -885,7 +596,7 @@ fn on_deliver_ics20_recv_packet_transfered_amount_less_then_flat_fee() {
 			data,
 			timeout_height: Height::new(2000, 5),
 			timeout_timestamp: ibc::timestamp::Timestamp::from_nanoseconds(
-				time_now as u64 + 10000000,
+				1690894363u64.saturating_mul(1000000000),
 			)
 			.unwrap(),
 		};
@@ -961,10 +672,10 @@ fn on_deliver_ics20_recv_packet_should_not_double_spend() {
 
 		let prefixed_denom = PrefixedDenom::from_str(denom).unwrap();
 		let amt = MILLIS / 100;
-		println!("Transferred Amount {amt}");
+		println!("Transferred Amount {}", amt);
 		let coin = Coin {
 			denom: prefixed_denom,
-			amount: ibc::applications::transfer::Amount::from_str(&format!("{amt:?}")).unwrap(),
+			amount: ibc::applications::transfer::Amount::from_str(&format!("{:?}", amt)).unwrap(),
 		};
 		let packet_data = PacketData {
 			token: coin,
@@ -973,7 +684,6 @@ fn on_deliver_ics20_recv_packet_should_not_double_spend() {
 			memo: "".to_string(),
 		};
 
-		let time_now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
 		let data = serde_json::to_vec(&packet_data).unwrap();
 		let packet = Packet {
 			sequence: 1u64.into(),
@@ -984,7 +694,7 @@ fn on_deliver_ics20_recv_packet_should_not_double_spend() {
 			data,
 			timeout_height: Height::new(2000, 5),
 			timeout_timestamp: ibc::timestamp::Timestamp::from_nanoseconds(
-				time_now as u64 + 10000000,
+				1690894363u64.saturating_mul(1000000000),
 			)
 			.unwrap(),
 		};
@@ -1061,7 +771,8 @@ fn should_fetch_recv_packet_with_acknowledgement() {
 
 		let mut ctx = Context::<Test>::default();
 
-		let channel_end = ChannelEnd { state: State::Open, ..Default::default() };
+		let mut channel_end = ChannelEnd::default();
+		channel_end.state = State::Open;
 		ctx.store_channel((port_id.clone(), channel_id), &channel_end).unwrap();
 		let packet = Packet {
 			sequence: 1u64.into(),
@@ -1074,7 +785,7 @@ fn should_fetch_recv_packet_with_acknowledgement() {
 			timeout_timestamp: Default::default(),
 		};
 
-		ctx.store_recv_packet((port_id, channel_id, packet.sequence), packet.clone())
+		ctx.store_recv_packet((port_id.clone(), channel_id, packet.sequence), packet.clone())
 			.unwrap();
 		let ack = "success".as_bytes().to_vec();
 		Pallet::<Test>::handle_message(HandlerMessage::WriteAck { packet, ack }).unwrap();
@@ -1110,9 +821,11 @@ fn should_cleanup_offchain_packets_correctly() {
 		// Add some packets offchain
 		let channel_end = ChannelEnd::default();
 		let mut ctx = Context::<Test>::default();
-		ctx.store_channel((port_id.clone(), channel_id), &channel_end).unwrap();
-		ctx.store_next_sequence_send((port_id.clone(), channel_id), 11.into()).unwrap();
-		ctx.store_next_sequence_recv((port_id.clone(), channel_id), 11.into()).unwrap();
+		ctx.store_channel((port_id.clone(), channel_id.clone()), &channel_end).unwrap();
+		ctx.store_next_sequence_send((port_id.clone(), channel_id.clone()), 11.into())
+			.unwrap();
+		ctx.store_next_sequence_recv((port_id.clone(), channel_id.clone()), 11.into())
+			.unwrap();
 		// Store packets and commitments
 		for i in 1..=10u64 {
 			let packet = Packet {
@@ -1125,12 +838,13 @@ fn should_cleanup_offchain_packets_correctly() {
 				timeout_height: Default::default(),
 				timeout_timestamp: Default::default(),
 			};
-			ctx.store_send_packet((port_id.clone(), channel_id, i.into()), packet).unwrap();
+			ctx.store_send_packet((port_id.clone(), channel_id.clone(), i.into()), packet)
+				.unwrap();
 
 			// Store commitment for even numbers
 			if i % 2 == 0 {
 				ctx.store_packet_commitment(
-					(port_id.clone(), channel_id, i.into()),
+					(port_id.clone(), channel_id.clone(), i.into()),
 					"commitment".as_bytes().to_vec().into(),
 				)
 				.unwrap();
@@ -1149,16 +863,17 @@ fn should_cleanup_offchain_packets_correctly() {
 				timeout_height: Default::default(),
 				timeout_timestamp: Default::default(),
 			};
-			ctx.store_recv_packet((port_id.clone(), channel_id, i.into()), packet).unwrap();
+			ctx.store_recv_packet((port_id.clone(), channel_id.clone(), i.into()), packet)
+				.unwrap();
 			// Store ack for odd numbers
 			if i % 2 != 0 {
 				ctx.store_packet_acknowledgement(
-					(port_id.clone(), channel_id, i.into()),
+					(port_id.clone(), channel_id.clone(), i.into()),
 					"commitment".as_bytes().to_vec().into(),
 				)
 				.unwrap();
 				Pallet::<Test>::store_raw_acknowledgement(
-					(port_id.clone(), channel_id, i.into()),
+					(port_id.clone(), channel_id.clone(), i.into()),
 					"acknowledgement".as_bytes().to_vec(),
 				)
 				.unwrap();
@@ -1211,11 +926,12 @@ fn should_cleanup_offchain_packets_correctly() {
 		// Now let's prepare to remove pending sequences
 		let mut ctx = Context::<Test>::default();
 		for i in send_seq_set {
-			ctx.delete_packet_commitment((port_id.clone(), channel_id, i.into())).unwrap();
+			ctx.delete_packet_commitment((port_id.clone(), channel_id.clone(), i.into()))
+				.unwrap();
 		}
 
 		for i in recv_seq_set {
-			ctx.delete_packet_acknowledgement((port_id.clone(), channel_id, i.into()))
+			ctx.delete_packet_acknowledgement((port_id.clone(), channel_id.clone(), i.into()))
 				.unwrap();
 		}
 	});
@@ -1269,7 +985,7 @@ fn test_next_and_previous_consensus_state_for_beefy_and_grandpa_clients() {
 		ctx.store_consensus_state(
 			client_id_grandpa.clone(),
 			Height::new(0, 10),
-			AnyConsensusState::Mock(mock_cs_state),
+			AnyConsensusState::Mock(mock_cs_state.clone()),
 		)
 		.unwrap();
 		assert!(ctx
