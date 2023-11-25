@@ -11009,7 +11009,7 @@ pub mod api {
 						module_id: ::std::vec::Vec<::core::primitive::u8>,
 					},
 					#[codec(index = 24)]
-					PushWasmCode { wasm_code_id: ::std::vec::Vec<::core::primitive::u8> },
+					PushWasmCode { wasm_checksum : ::std::vec::Vec<::core::primitive::u8> },
 				}
 			}
 			pub mod pallet {
